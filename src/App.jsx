@@ -101,8 +101,6 @@ const GROUPS = CATEGORIES.map(cat => ({
   cat, pairs: Object.keys(INSTRUMENTS).filter(p => INSTRUMENTS[p].cat === cat)
 }))
 
-// ─── TIMEFRAME CONFIG ─────────────────────────────────────────────────────────
-// tp2 is higher on larger TFs — Wilder's position trading allows letting winners run longer
 const TIMEFRAMES = {
   '1M':  { label:'1 Minute',  tp1:2, tp2:3, maxSL:8,   context:'Scalp — Very tight. SL 3-8 pips typical.' },
   '5M':  { label:'5 Minute',  tp1:2, tp2:3, maxSL:15,  context:'Scalp — SL 5-15 pips typical.' },
@@ -111,7 +109,7 @@ const TIMEFRAMES = {
   '1H':  { label:'1 Hour',    tp1:2, tp2:4, maxSL:60,  context:'Intraday — SL 20-60 pips typical.' },
   '2H':  { label:'2 Hour',    tp1:2, tp2:4, maxSL:80,  context:'Intraday/Swing — SL 30-80 pips typical.' },
   '4H':  { label:'4 Hour',    tp1:2, tp2:4, maxSL:100, context:'Swing — SL 40-100 pips typical.' },
-  'D1':  { label:'Daily',     tp1:2, tp2:5, maxSL:200, context:'Position/Swing — SL 80-200 pips typical. Wilder\'s original focus.' },
+  'D1':  { label:'Daily',     tp1:2, tp2:5, maxSL:200, context:"Position/Swing — SL 80-200 pips typical. Wilder's original focus." },
   'W1':  { label:'Weekly',    tp1:2, tp2:5, maxSL:400, context:'Position — SL 150-400 pips typical.' },
   'MN':  { label:'Monthly',   tp1:2, tp2:5, maxSL:800, context:'Long-term Position — SL 300+ pips typical.' },
 }
@@ -119,6 +117,32 @@ const TF_KEYS = ['1M','5M','15M','30M','1H','2H','4H','D1','W1','MN']
 
 const LOTS = ['0.001','0.01','0.02','0.03','0.05','0.10','0.20','0.50','1.00','2.00','5.00']
 const LEVS = ['10','20','30','50','100','200','400','500','1000']
+
+// ─── READ URL PARAMS FROM TRADEEYE ────────────────────────────────────────────
+function getURLParams() {
+  const p = new URLSearchParams(window.location.search)
+  const get = k => p.get(k) || ''
+
+  // Validate pair exists in our database
+  const rawPair = get('pair').toUpperCase()
+  const pair = INSTRUMENTS[rawPair] ? rawPair : 'AUDUSD'
+
+  // Validate TF
+  const rawTF = get('tf').toUpperCase()
+  const tf = TIMEFRAMES[rawTF] ? rawTF : '5M'
+
+  return {
+    pair,
+    tf,
+    entry:    get('entry'),
+    atr:      get('atr'),
+    sar:      get('sar'),
+    adx:      get('adx'),
+    plusDI:   get('plusDI'),
+    minusDI:  get('minusDI'),
+    rsi:      get('rsi'),
+  }
+}
 
 // ─── LOGIC ────────────────────────────────────────────────────────────────────
 function runValidation(s) {
@@ -193,7 +217,6 @@ const S = {
   inp:  { width:'100%', padding:'13px 14px', fontSize:15, fontWeight:700, background:'#fff', border:'2px solid #e5e7eb', borderRadius:12, color:'#111', outline:'none', boxSizing:'border-box' },
 }
 
-// ─── SMALL COMPONENTS ─────────────────────────────────────────────────────────
 const Field = ({ lbl, val, onChange, ph='' }) => (
   <div>
     <label style={S.lbl}>{lbl}</label>
@@ -234,7 +257,6 @@ const Note = ({ text, emoji='📌', bg='#fffbeb', border='#fde047', tc='#854d0e'
   </div>
 )
 
-// ─── TIMEFRAME PILLS ──────────────────────────────────────────────────────────
 function TFSelector({ value, onChange }) {
   const tf = TIMEFRAMES[value]
   return (
@@ -260,7 +282,6 @@ function TFSelector({ value, onChange }) {
           )
         })}
       </div>
-      {/* Context info for selected TF */}
       <div style={{ padding:'10px 14px', background:'#f0f9ff', border:'1.5px solid #bae6fd', borderRadius:10, display:'flex', gap:10, alignItems:'flex-start' }}>
         <div style={{ background:'#2563eb', color:'#fff', fontSize:12, fontWeight:900, padding:'4px 10px', borderRadius:8, flexShrink:0, marginTop:1 }}>
           {value}
@@ -274,7 +295,6 @@ function TFSelector({ value, onChange }) {
   )
 }
 
-// ─── INSTALL BANNER ───────────────────────────────────────────────────────────
 function InstallBanner() {
   const [prompt, setPrompt] = useState(null)
   const [visible, setVisible] = useState(false)
@@ -311,6 +331,30 @@ function InstallBanner() {
   )
 }
 
+// ─── TRADEEYE BANNER — shown when data arrives from scanner ──────────────────
+function TradeEyeBanner({ pair, tf, onDismiss }) {
+  return (
+    <div style={{ background:'linear-gradient(135deg,#0f172a,#1e293b)', borderRadius:16, padding:'14px 16px', marginBottom:14, border:'1.5px solid #3b82f6' }}>
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          <span style={{ fontSize:24 }}>📡</span>
+          <div>
+            <div style={{ fontSize:12, fontWeight:800, color:'#60a5fa', letterSpacing:1 }}>FROM TRADEEYE SCANNER</div>
+            <div style={{ fontSize:14, fontWeight:900, color:'#f8fafc' }}>{pair} · {tf} — Data pre-filled ✓</div>
+          </div>
+        </div>
+        <button onClick={onDismiss}
+          style={{ background:'transparent', border:'none', color:'#64748b', fontSize:18, cursor:'pointer', padding:'4px 8px' }}>
+          ✕
+        </button>
+      </div>
+      <div style={{ marginTop:8, fontSize:11, fontWeight:600, color:'#94a3b8' }}>
+        Select BUY or SELL direction, set your lot size and balance, then calculate.
+      </div>
+    </div>
+  )
+}
+
 // ─── MAIN ─────────────────────────────────────────────────────────────────────
 const INIT = {
   pair:'AUDUSD', tf:'5M', direction:'', entry:'', atr:'', sar:'',
@@ -319,10 +363,14 @@ const INIT = {
 }
 
 export default function App() {
-  const [s, setS]     = useState(INIT)
-  const [res, setRes] = useState(null)
-  const [val, setVal] = useState(null)
-  const [tab, setTab] = useState('calc')
+  const urlParams  = getURLParams()
+  const hasScanned = !!(urlParams.entry || urlParams.atr)
+
+  const [s, setS]           = useState(() => hasScanned ? { ...INIT, ...urlParams } : INIT)
+  const [res, setRes]       = useState(null)
+  const [val, setVal]       = useState(null)
+  const [tab, setTab]       = useState('calc')
+  const [showBanner, setShowBanner] = useState(hasScanned)
 
   const upd  = k => v => setS(p=>({...p,[k]:v}))
   const updE = k => e => setS(p=>({...p,[k]:e.target.value}))
@@ -349,12 +397,11 @@ export default function App() {
             <div style={{ fontSize:18, fontWeight:900, color:'#f8fafc', lineHeight:1.2 }}>Scalping Calculator</div>
           </div>
           <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-            {/* Active TF shown in header */}
             <div style={{ background:'#1e293b', border:'1px solid #2563eb', borderRadius:8, padding:'5px 12px', textAlign:'center' }}>
               <div style={{ fontSize:9, fontWeight:700, color:'#64748b', letterSpacing:1 }}>TF</div>
               <div style={{ fontSize:16, fontWeight:900, color:'#60a5fa' }}>{s.tf}</div>
             </div>
-            <button onClick={()=>setS(INIT)}
+            <button onClick={()=>{ setS(INIT); setShowBanner(false); }}
               style={{ padding:'8px 14px', background:'#1e293b', border:'1px solid #334155', borderRadius:10, color:'#94a3b8', fontSize:12, fontWeight:700, cursor:'pointer' }}>
               Reset
             </button>
@@ -364,6 +411,15 @@ export default function App() {
 
       <div style={{ maxWidth:480, margin:'0 auto', padding:'14px 14px 0' }}>
         <InstallBanner />
+
+        {/* TRADEEYE BANNER */}
+        {showBanner && (
+          <TradeEyeBanner
+            pair={s.pair}
+            tf={s.tf}
+            onDismiss={() => setShowBanner(false)}
+          />
+        )}
 
         {/* TABS */}
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:14 }}>
@@ -403,7 +459,7 @@ export default function App() {
                 'RSI below 50 = Bearish momentum — stay short',
                 'RSI 70+ in uptrend = Trend STRENGTH — not a sell signal',
                 'RSI 30- in downtrend = Trend STRENGTH — not a buy signal',
-                'Failure swing = Wilder\'s strongest RSI signal on any TF',
+                "Failure swing = Wilder's strongest RSI signal on any TF",
                 'RSI crosses 50 = possible trend change',
               ]},
               { title:'Step 5 — ATR (Position Sizing)', items:[
@@ -418,9 +474,9 @@ export default function App() {
                 '1M-5M: Scalping — tight SL, quick TP, high frequency',
                 '15M-30M: Intraday scalp — moderate SL, intraday targets',
                 '1H-4H: Swing intraday — wider SL, holds hours to a day',
-                'D1-W1: Position trading — Wilder\'s original timeframe focus',
+                "D1-W1: Position trading — Wilder's original timeframe focus",
                 'MN: Long-term position — very wide SL, months-long trade',
-                'Wilder\'s rules do not change — only ATR size changes per TF',
+                "Wilder's rules do not change — only ATR size changes per TF",
               ]},
               { title:'Exit Rules — Wilder Hard Rules', items:[
                 'SAR flips = EXIT immediately — hardest rule regardless of TF',
@@ -452,16 +508,11 @@ export default function App() {
         {/* CALCULATOR TAB */}
         {tab==='calc' && (
           <>
-            {/* TRADE SETUP */}
             <div style={S.card}>
               <div style={S.sec}>Trade Setup</div>
-
-              {/* TF selector — most prominent, first thing user sees */}
               <div style={{ marginBottom:16 }}>
                 <TFSelector value={s.tf} onChange={upd('tf')} />
               </div>
-
-              {/* Pair */}
               <div style={{ marginBottom:12 }}>
                 <label style={S.lbl}>Instrument / Pair</label>
                 <select value={s.pair} onChange={updE('pair')} style={{ ...S.inp, cursor:'pointer' }}>
@@ -483,7 +534,6 @@ export default function App() {
                   />
                 )}
               </div>
-
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
                 <Sel lbl="Direction" val={s.direction} onChange={upd('direction')} color={dirColor}>
                   <option value=''>Select</option>
@@ -501,7 +551,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* INDICATOR VALUES */}
             <div style={S.card}>
               <div style={S.sec}>Wilder Indicators — {s.tf} Chart</div>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
@@ -514,7 +563,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* VALIDATION */}
             {val && (
               <div style={S.card}>
                 <div style={S.sec}>Wilder Rule Check — {tfCfg.label}</div>
@@ -541,7 +589,6 @@ export default function App() {
               </div>
             )}
 
-            {/* RESULTS */}
             {res && (
               <>
                 <div style={{ background:dirColor, borderRadius:18, padding:'18px 20px', textAlign:'center', marginBottom:14 }}>
@@ -589,7 +636,9 @@ export default function App() {
             {!res&&!val && (
               <div style={{ ...S.card, textAlign:'center', padding:'40px 20px' }}>
                 <div style={{ fontSize:44, marginBottom:14 }}>📊</div>
-                <div style={{ fontSize:16, fontWeight:800, color:'#374151', marginBottom:8 }}>Select timeframe, pair and fill in all values</div>
+                <div style={{ fontSize:16, fontWeight:800, color:'#374151', marginBottom:8 }}>
+                  {hasScanned ? 'Select direction to see trade analysis' : 'Select timeframe, pair and fill in all values'}
+                </div>
                 <div style={{ fontSize:13, fontWeight:500, color:'#9ca3af' }}>SL, TP and full Wilder analysis will appear here</div>
               </div>
             )}
